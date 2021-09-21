@@ -1,0 +1,94 @@
+import "ecc/babyjubjubParams" as context
+from "ecc/babyjubjubParams" import BabyJubJubParams
+import "ecc/proofOfOwnership" as proofOfOwnership
+import "ecc/edwardsScalarMult" as multiply
+
+import "utils/pack/bool/unpack" as unpack
+import "utils/casts/u64_from_bits" as u64_from_bits
+import "hashes/keccak/256bit" as keccak256
+
+
+
+def testOwnershipTrue(private field sk, public field[2] pk) -> bool:
+	BabyJubJubParams context = context()
+	field[2] G = [context.Gu, context.Gv]
+
+	bool out = proofOfOwnership(pk, sk, context)
+
+	assert(out)
+	return true
+
+
+    def bool_to_u64_arr<N, P>(bool[N] bits) -> u64[P]:
+	u64[P] res = [0; P]
+	for u32 i in 0..P do
+		res[i] = u64_from_bits(bits[64 * i..64 * (i + 1)])
+	endfor
+	return res
+	
+
+    
+def main(private field user_age,private field user_sk, private field[2] user_pk,public field[2] user_DID,public field[2] IDP_DID,public field[2] cert_Hash)->field:
+
+	assert(testOwnershipTrue(user_sk,user_pk))
+	
+bool[254] pk0_t=unpack::<254>(user_pk[0])
+bool[256] pk0=[false,false,...pk0_t]
+u64[4] pk0_u64 = bool_to_u64_arr::<256,4>(pk0)
+
+
+bool[254] pk1_t=unpack::<254>(user_pk[1])
+bool[256] pk1=[false,false,...pk1_t]
+u64[4] pk1_u64 = bool_to_u64_arr::<256,4>(pk1)
+
+
+u64[8] PK_sigma=[pk0_u64[0],pk0_u64[1],pk0_u64[2],pk0_u64[3],pk1_u64[0],pk1_u64[1],pk1_u64[2],pk1_u64[3]]   // pk
+
+
+u64[4] user_DID_1P=keccak256::<8>(PK_sigma)   //PrDID'=keccak256(PK||sigma)
+
+
+bool[128] user_DID_t=unpack::<128>(user_DID[0])
+bool[128] user_DID_t1=unpack::<128>(user_DID[1])
+bool[256] user_DID_t2=[...user_DID_t,...user_DID_t1]
+u64[4] user_DID_u64 = bool_to_u64_arr::<256,4>(user_DID_t2)
+
+assert(user_DID_1P==user_DID_u64)
+
+
+
+
+bool[128] IDP_DID_t=unpack::<128>(IDP_DID[0])
+bool[128] IDP_DID_t1=unpack::<128>(IDP_DID[1])
+bool[256] IDP_DID_t2=[...IDP_DID_t,...IDP_DID_t1]
+u64[4] IDP_DID_u64 = bool_to_u64_arr::<256,4>(IDP_DID_t2)
+
+
+bool[64] user_age_t=unpack::<64>(user_age)
+u64[1] user_age_u64 = bool_to_u64_arr::<64,1>(user_age_t)
+
+
+u64[9] cert_Hash_temp_u64=[user_age_u64[0],user_DID_u64[0],user_DID_u64[1],user_DID_u64[2],user_DID_u64[3],IDP_DID_u64[0],IDP_DID_u64[1],IDP_DID_u64[2],IDP_DID_u64[3]]
+
+
+
+u64[4] cert_Hash_temp=keccak256::<9>(cert_Hash_temp_u64)
+
+
+
+bool[128] cert_Hash_t=unpack::<128>(cert_Hash[0])
+bool[128] cert_Hash_t1=unpack::<128>(cert_Hash[1])
+bool[256] cert_Hash_t2=[...cert_Hash_t,...cert_Hash_t1]
+u64[4] cert_Hash_u64 = bool_to_u64_arr::<256,4>(cert_Hash_t2)
+
+assert(cert_Hash_temp==cert_Hash_u64)
+
+
+
+field valid_age_max=60
+field valid_age_min=18
+
+
+assert(user_age>valid_age_min && user_age<valid_age_max)
+
+	return 1
